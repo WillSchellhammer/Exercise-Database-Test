@@ -33,6 +33,19 @@ export default {
 			return Response.json("Created blank Monday table");
 		}
 
+		if (pathname.substring(0,26) === "/api/insert_exercise_monday") {
+			//Create monday table if it doesn't exist
+			await env.prod_d1_tutorial.prepare("CREATE TABLE Monday AS SELECT * FROM 'All Exercises' WHERE 0=1 IF NOT EXISTS Monday").run();
+
+			//Add an exercise from Unselected Exercises
+			await env.prod_d1_tutorial.prepare("INSERT INTO Monday SELECT * FROM 'Unselected Exercises' WHERE id=${pathname.substring(26)}")
+
+			//Remove the exercise from Unselected Exercises
+			await env.prod_d1_tutorial.prepare("DELETE FROM 'Unselected Exercises' * WHERE id=${pathname.substring(26)}")
+
+			return Response.json("Moved id ${pathname.substring(26)} from Unselected Exercises to Monday");
+		}
+
 		return new Response(
 			"Call /api/beverages to see everyone who works at Bs Beverages",
 		);
