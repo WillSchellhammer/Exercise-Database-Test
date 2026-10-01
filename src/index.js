@@ -41,13 +41,13 @@ export default {
 			}
 
 			//Create monday table if it doesn't exist
-			await env.prod_d1_tutorial.prepare("CREATE TABLE IF NOT EXISTS Monday AS SELECT * FROM 'All Exercises' WHERE 0=1").run();
+			await env.prod_d1_tutorial.prepare('CREATE TABLE IF NOT EXISTS Monday AS SELECT * FROM "All Exercises" WHERE 0=1').run();
 
 			//Add an exercise from Unselected Exercises
-			await env.prod_d1_tutorial.prepare("INSERT INTO Monday SELECT * FROM 'Unselected Exercises' WHERE id = ?").bind(ID).run();
+			await env.prod_d1_tutorial.prepare('INSERT INTO Monday SELECT * FROM "Unselected Exercises" WHERE id = ?').bind(ID).run();
 
 			//Remove the exercise from Unselected Exercises
-			await env.prod_d1_tutorial.prepare("DELETE FROM 'Unselected Exercises' WHERE id = ?").bind(ID).run();
+			await env.prod_d1_tutorial.prepare('DELETE FROM "Unselected Exercises" WHERE id = ?').bind(ID).run();
 
 			return Response.json(`Moved id ${ID} from Unselected Exercises to Monday`);
 		}
