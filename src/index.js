@@ -23,7 +23,7 @@ export default {
 		}
 
 		//Delete existing Monday table and build a blank one
-		if (pathname === "api/create_monday_table") {
+		if (pathname === "/api/create_monday_table") {
 			//Delete existing table
 			await env.prod_d1_tutorial.prepare("DROP TABLE IF EXISTS 'Monday'").run();
 
