@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeacFit</title>
+<style>
+	:root {
+		--gold: #9e7e38;
+		--ink: #1d1a14;
+		--paper: #faf8f3;
+		--line: #d9d2c0;
+		--muted: #6b6454;
+		--danger: #9b2c2c;
+	}
+	* { box-sizing: border-box; }
+	body {
+		margin: 0;
+		font-family: system-ui, sans-serif;
+		color: var(--ink);
+		background: var(--paper);
+		line-height: 1.5;
+	}
+	main { max-width: 44rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+	h1 { margin: 0 0 1.5rem; font-size: 1.75rem; border-bottom: 3px solid var(--gold); padding-bottom: .5rem; }
+	h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; }
+	label { font-weight: 600; margin-right: .5rem; }
+	input[type="date"] { font: inherit; padding: .35rem .5rem; border: 1px solid var(--line); background: #fff; }
+	ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+	li { display: flex; gap: 1rem; align-items: center; justify-content: space-between; padding: .75rem 0; border-bottom: 1px solid var(--line); }
+	.name { font-weight: 600; }
+	.detail { color: var(--muted); font-size: .9rem; }
+	.empty { color: var(--muted); padding: .75rem 0; }
+	button { font: inherit; padding: .35rem .9rem; border: 1px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer; flex-shrink: 0; }
+	button.remove { background: transparent; color: var(--danger); border-color: var(--danger); }
+	button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+	#status { min-height: 1.5rem; margin-top: 1rem; color: var(--danger); }
+</style>
+</head>
+<body>
+<main>
+	<h1>DeacFit</h1>
+
+	<label for="date">Date</label>
+	<input type="date" id="date">
+	<p id="status" role="status"></p>
+
+	<h2>Scheduled for this date</h2>
+	<ul id="scheduled"></ul>
+
+	<h2>Available to add</h2>
+	<ul id="available"></ul>
+</main>
+
+<script>
+	const dateInput = document.getElementById("date");
+	const scheduledList = document.getElementById("scheduled");
+	const availableList = document.getElementById("available");
+	const statusEl = document.getElementById("status");
+
+	// Today's date in the user's own time zone, formatted YYYY-MM-DD
+	function today() {
+		const now = new Date();
+		const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+		return local.toISOString().slice(0, 10);
+	}
+
+	// Calls the Worker and returns the JSON. Throws an Error with the server's message if it fails.
+	async function api(path, options) {
+		const response = await fetch(path, options);
+		const data = await response.json().catch(() => ({}));
+		if (!response.ok) {
+			throw new Error(data.error || "Request failed (" + response.status + ")");
+		}
+		return data;
+	}
+
+	// Builds one <li> per exercise. We use textContent (not innerHTML) so exercise
+	// text from the database can never be treated as HTML.
+	function renderList(listEl, items, emptyText, buttonLabel, buttonClass, onClick) {
+		listEl.replaceChildren();
+		if (items.length === 0) {
+			const empty = document.createElement("li");
+			empty.className = "empty";
+			empty.textContent = emptyText;
+			listEl.append(empty);
+			return;
+		}
+		for (const item of items) {
+			const li = document.createElement("li");
+
+			const text = document.createElement("div");
+			const name = document.createElement("div");
+			name.className = "name";
+			name.textContent = item.name;
+			const detail = document.createElement("div");
+			detail.className = "detail";
+			detail.textContent = item.sets + " sets × " + item.reps + " reps";
+			text.append(name, detail);
+
+			const button = document.createElement("button");
+			button.textContent = buttonLabel;
+			button.className = buttonClass;
+			button.addEventListener("click", () => onClick(item));
+
+			li.append(text, button);
+			listEl.append(li);
+		}
+	}
+
+	// Reloads both lists for the selected date
+	async function refresh() {
+		const date = dateInput.value;
+		if (!date) return;
+		try {
+			const [scheduled, available] = await Promise.all([
+				api("/api/schedule/" + date),
+				api("/api/schedule/" + date + "/available"),
+			]);
+			renderList(scheduledList, scheduled, "Nothing scheduled yet.", "Remove", "remove",
+				(item) => change("DELETE", item.exercise_id));
+			renderList(availableList, available, "Every exercise is already scheduled.", "Add", "add",
+				(item) => change("POST", item.id));
+			statusEl.textContent = "";
+		} catch (err) {
+			statusEl.textContent = err.message;
+		}
+	}
+
+	// Adds (POST) or removes (DELETE) an exercise on the selected date, then reloads
+	async function change(method, exerciseId) {
+		try {
+			await api("/api/schedule/" + dateInput.value + "/exercises/" + exerciseId, { method });
+			await refresh();
+		} catch (err) {
+			statusEl.textContent = err.message;
+		}
+	}
+
+	dateInput.value = today();
+	dateInput.addEventListener("change", refresh);
+	refresh();
+</script>
+</body>
+</html>
